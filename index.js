@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 
 const REPO_OWNER = "hajrateali"; // Tumhara GitHub username
-const REPO_NAME = "newrepo";     // Tumhara GitHub repo name
+const REPO_NAME = "Server-";     // Tumhara GitHub repo name
 
 app.put('/upload', async (req, res) => {
   const images = req.body;
