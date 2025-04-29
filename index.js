@@ -6,55 +6,45 @@ const app = express();
 const PORT = 3001;
 
 app.use(cors());
-app.use(express.json({ limit: '100mb' })); // JSON body accept karne ke liye
+app.use(express.json({ limit: '100mb' }));
 
-app.get('/hot', (req, res) => {
-  fetch('https://raw.githubusercontent.com/hajrateali/newrepo/main/data.json')
-    .then(r => r.json())
-    .then(data => {
-      res.send(data);
-    })
-    .catch(err => {
-      res.status(500).send({ error: "Failed to fetch data" });
-    });
-});
+const REPO_OWNER = "hajrateali"; // Tumhara GitHub username
+const REPO_NAME = "newrepo";     // Tumhara GitHub repo name
 
-// ---- Yaha se naya route start ----
+app.put('/upload', async (req, res) => {
+  const images = req.body;
 
-app.put('/upload', (req, res) => {
-  const newImages = req.body; // Jo browser se bheja gaya hai
-
-  if (!Array.isArray(newImages)) {
+  if (!Array.isArray(images)) {
     return res.status(400).send({ error: "Data must be an array of images" });
   }
 
-  // Step 1: Pahle purana data read karo
-  fs.readFile('data.json', 'utf8', (err, data) => {
-    if (err) {
-      return res.status(500).send({ error: "Failed to read existing data" });
-    }
+  try {
+    for (const img of images) {
+      const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${img.name}`, {
+        method: 'PUT',
+        headers: {
+          'Accept': 'application/vnd.github.v3+json'
+        },
+        body: JSON.stringify({
+          message: `Upload ${img.name}`,
+          content: img.content
+        })
+      });
 
-    let existingData = [];
-    try {
-      existingData = JSON.parse(data);
-    } catch (parseErr) {
-      return res.status(500).send({ error: "Existing data is not valid JSON" });
-    }
+      const result = await response.json();
 
-    // Step 2: Existing data ke sath naye images jod do
-    const updatedData = [...existingData, ...newImages];
-
-    // Step 3: JSON file me updated data wapas likho
-    fs.writeFile('data.json', JSON.stringify(updatedData, null, 2), (writeErr) => {
-      if (writeErr) {
-        return res.status(500).send({ error: "Failed to update data" });
+      if (!response.ok) {
+        throw new Error(result.message || 'GitHub upload failed');
       }
-      res.send({ success: true, message: "Images added successfully!" });
-    });
-  });
+    }
+
+    res.send({ success: true, message: "All images uploaded to GitHub!" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: err.message });
+  }
 });
-
-
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
